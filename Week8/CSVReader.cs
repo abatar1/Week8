@@ -18,11 +18,8 @@ namespace Week8
         private static string[] ParseValues(StreamReader s)
         {
             var str = s.ReadLine();
-            if (str == null)
-            {
-                s.Close();
-                return null;
-            }
+            if (str == null) return null;
+
             return str.Split(',');
         }
 
@@ -75,25 +72,26 @@ namespace Week8
             using (var stream = new StreamReader(filename))
             {
                 var setParams = ParseHeader(stream.ReadLine());
+
                 var bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
                 var properties = typeof(TType).GetProperties(bindingFlags)
                     .Where(t => setParams.Contains(t.Name))
                     .ToArray();
 
                 var sortProperties = new List<PropertyInfo>();
-                for (int i = 0; i < properties.Length; i++)
-                {
-                    sortProperties.Add(properties.Where(f => f.Name == setParams[i]).Single());
-                }
+                foreach (var param in setParams)
+                    sortProperties.Add(properties
+                        .Where(f => f.Name == param)
+                        .Single());
 
                 while (true)
                 {
                     var values = ParseValues(stream);
                     if (values == null)
                         yield break;
-                    var obj = new TType();
 
-                    for (int i = 0; i < properties.Length; i++)
+                    var obj = new TType();
+                    for (int i = 0; i < setParams.Length; i++)
                     {
                         var rawType = sortProperties[i].PropertyType;
                         object value = values[i];
@@ -126,8 +124,8 @@ namespace Week8
                     var values = ParseValues(stream);
                     if (values == null)
                         yield break;
-                    var dict = new Dictionary<string, object>();
 
+                    var dict = new Dictionary<string, object>();
                     for (int i = 0; i < setParams.Length; i++)
                     {
                         var value = ExpectedConvert(values[i]);
