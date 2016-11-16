@@ -23,6 +23,11 @@ namespace Week8
             return str.Split(',');
         }
 
+        private static bool IsNullableType(Type type)
+        {
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+        }
+
         private static object ExpectedConvert(string stringValue)
         {
             if (stringValue == "NA") return null;
@@ -94,16 +99,16 @@ namespace Week8
                     for (int i = 0; i < setParams.Length; i++)
                     {
                         var rawType = sortProperties[i].PropertyType;
-                        object value = values[i];
+                        object value;
                         if (values[i] == "NA")
-                            if (rawType.IsGenericType && rawType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                            if (IsNullableType(rawType))
                                 value = null;
                             else
                                 throw new ArgumentException();
                         else
                         {
                             var vType = Nullable.GetUnderlyingType(rawType) ?? rawType;
-                            value = Convert.ChangeType(value, vType);
+                            value = Convert.ChangeType(values[i], vType);
                         }
 
                         sortProperties[i].SetValue(obj, value);
