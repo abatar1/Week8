@@ -15,12 +15,11 @@ namespace Week8
             return header.Replace("\"", string.Empty).Split(',');
         }
 
-        private static string[] ParseValues(StreamReader s)
+        private static string[] ParseValues(string values)
         {
-            var str = s.ReadLine();
-            if (str == null) return null;
+            if (values == null) return null;
 
-            return str.Split(',');
+            return values.Split(',');
         }
 
         private static bool IsNullableType(Type type)
@@ -60,7 +59,7 @@ namespace Week8
             {
                 while (true)
                 {
-                    var values = ParseValues(stream);
+                    var values = ParseValues(stream.ReadLine());
                     if (values == null)
                         yield break;
 
@@ -89,12 +88,9 @@ namespace Week8
                         .Where(f => f.Name == param)
                         .Single());
 
-                while (true)
+                var values = ParseValues(stream.ReadLine());
+                while (values != null)
                 {
-                    var values = ParseValues(stream);
-                    if (values == null)
-                        yield break;
-
                     var obj = new TType();
                     for (int i = 0; i < setParams.Length; i++)
                     {
@@ -113,6 +109,7 @@ namespace Week8
 
                         sortProperties[i].SetValue(obj, value);
                     }
+                    values = ParseValues(stream.ReadLine());
                     yield return obj;
                 }
             }
@@ -123,19 +120,17 @@ namespace Week8
             using (var stream = new StreamReader(filename))
             {
                 var setParams = ParseHeader(stream.ReadLine());
+                var values = ParseValues(stream.ReadLine());
 
-                while (true)
+                while (values != null)
                 {
-                    var values = ParseValues(stream);
-                    if (values == null)
-                        yield break;
-
                     var dict = new Dictionary<string, object>();
                     for (int i = 0; i < setParams.Length; i++)
                     {
                         var value = ExpectedConvert(values[i]);
                         dict.Add(setParams[i], value);
                     }
+                    values = ParseValues(stream.ReadLine());
                     yield return dict;
                 }
             }
@@ -146,19 +141,17 @@ namespace Week8
             using (var stream = new StreamReader(filename))
             {
                 var setParams = ParseHeader(stream.ReadLine());
-                
-                while (true)
-                {
-                    var values = ParseValues(stream);
-                    if (values == null)
-                        yield break;
+                var values = ParseValues(stream.ReadLine());
 
+                while (values != null)
+                {
                     dynamic obj = new ExpandoObject();
                     for (int i = 0; i < setParams.Length; i++)
                     {
                         var value = ExpectedConvert(values[i]);
                         ((IDictionary<string, object>)obj)[setParams[i]] = value;
                     }
+                    values = ParseValues(stream.ReadLine());
                     yield return obj;
                 }
             }
