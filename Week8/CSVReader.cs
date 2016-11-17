@@ -7,9 +7,22 @@ using System.Linq;
 using System.Reflection;
 
 namespace Week8
-{   
+{
     public class CSVReader
-    {   
+    {
+        private static string[] ParseHeader(string header)
+        {
+            return header.Replace("\"", string.Empty).Split(',');
+        }
+
+        private static string[] ParseValues(StreamReader s)
+        {
+            var str = s.ReadLine();
+            if (str == null) return null;
+
+            return str.Split(',');
+        }
+
         private static bool IsNullableType(Type type)
         {
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
@@ -45,12 +58,16 @@ namespace Week8
         {
             using (var stream = new StreamReader(filename))
             {
-                var csvFile = CSVFile.RawParseFile(stream);
-             
-                foreach (var line in csvFile.Content)
-                    yield return line
+                while (true)
+                {
+                    var values = ParseValues(stream);
+                    if (values == null)
+                        yield break;
+
+                    yield return values
                         .Select(x => x == "NA" ? null : x)
-                        .ToArray();          
+                        .ToArray();
+                }
             }
         }
 
@@ -59,28 +76,31 @@ namespace Week8
         {
             using (var stream = new StreamReader(filename))
             {
-                var csvFile = CSVFile.RawParseFile(stream);
+                var setParams = ParseHeader(stream.ReadLine());
 
                 var bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
                 var properties = typeof(TType).GetProperties(bindingFlags)
-                    .Where(t => csvFile.Header.Contains(t.Name))
+                    .Where(t => setParams.Contains(t.Name))
                     .ToArray();
 
                 var sortProperties = new List<PropertyInfo>();
-                foreach (var param in csvFile.Header)
+                foreach (var param in setParams)
                     sortProperties.Add(properties
                         .Where(f => f.Name == param)
                         .Single());
-                
-                foreach (var line in csvFile.Content)
-                {
-                    var obj = new TType();
 
-                    for (int i = 0; i < csvFile.ParamsCount; i++)
+                while (true)
+                {
+                    var values = ParseValues(stream);
+                    if (values == null)
+                        yield break;
+
+                    var obj = new TType();
+                    for (int i = 0; i < setParams.Length; i++)
                     {
                         var rawType = sortProperties[i].PropertyType;
                         object value;
-                        if (line[i] == "NA")
+                        if (values[i] == "NA")
                             if (IsNullableType(rawType))
                                 value = null;
                             else
@@ -88,13 +108,13 @@ namespace Week8
                         else
                         {
                             var vType = Nullable.GetUnderlyingType(rawType) ?? rawType;
-                            value = Convert.ChangeType(line[i], vType);
+                            value = Convert.ChangeType(values[i], vType);
                         }
 
                         sortProperties[i].SetValue(obj, value);
                     }
                     yield return obj;
-                }               
+                }
             }
         }
 
@@ -102,15 +122,19 @@ namespace Week8
         {
             using (var stream = new StreamReader(filename))
             {
-                var csvFile = CSVFile.RawParseFile(stream);
+                var setParams = ParseHeader(stream.ReadLine());
 
-                foreach (var line in csvFile.Content)
+                while (true)
                 {
+                    var values = ParseValues(stream);
+                    if (values == null)
+                        yield break;
+
                     var dict = new Dictionary<string, object>();
-                    for (int i = 0; i < csvFile.ParamsCount; i++)
+                    for (int i = 0; i < setParams.Length; i++)
                     {
-                        var value = ExpectedConvert(line[i]);
-                        dict.Add(csvFile.Header[i], value);
+                        var value = ExpectedConvert(values[i]);
+                        dict.Add(setParams[i], value);
                     }
                     yield return dict;
                 }
@@ -121,18 +145,22 @@ namespace Week8
         {
             using (var stream = new StreamReader(filename))
             {
-                var csvFile = CSVFile.RawParseFile(stream);
-
-                foreach (var line in csvFile.Content)
+                var setParams = ParseHeader(stream.ReadLine());
+                
+                while (true)
                 {
+                    var values = ParseValues(stream);
+                    if (values == null)
+                        yield break;
+
                     dynamic obj = new ExpandoObject();
-                    for (int i = 0; i < csvFile.ParamsCount; i++)
+                    for (int i = 0; i < setParams.Length; i++)
                     {
-                        var value = ExpectedConvert(line[i]);
-                        ((IDictionary<string, object>)obj)[csvFile.Header[i]] = value;
+                        var value = ExpectedConvert(values[i]);
+                        ((IDictionary<string, object>)obj)[setParams[i]] = value;
                     }
                     yield return obj;
-                }                
+                }
             }
         }
     }
