@@ -17,7 +17,7 @@ namespace Week8
             stream = new StreamReader(filename);                
         }
 
-        #region Additional methods
+        #region Additional Methods
         private static string[] ParseHeader(string header)
         {
             return header
@@ -94,8 +94,9 @@ namespace Week8
         }
         #endregion
 
-        private IEnumerable<TResult> Read<TResult>
-            (Action<string[], TResult, int> processor) where TResult : new()
+        private IEnumerable<TResult> TRead<TResult>
+            (Action<string[], TResult, int> processor) 
+            where TResult : new()
         {
             while (true)
             {
@@ -146,7 +147,7 @@ namespace Week8
                 }
                 properties[i].SetValue(obj, value);
             };
-            return Read(processor);
+            return TRead(processor);
         }
 
         public IEnumerable<Dictionary<string, object>> Read3()
@@ -158,7 +159,7 @@ namespace Week8
                 var value = ExpectedConvert(values[i], expectedTypes);
                 obj.Add(header[i], value);
             };
-            return Read(processor);
+            return TRead(processor);
         }
 
         public IEnumerable<dynamic> Read4()
@@ -170,7 +171,7 @@ namespace Week8
                 var value = ExpectedConvert(values[i], expectedTypes);
                 ((IDictionary<string, object>)obj)[header[i]] = value;
             };
-            return Read(processor);
+            return TRead(processor);
         }        
     }
 }
