@@ -94,27 +94,34 @@ namespace Week8
         }
         #endregion
 
-        private IEnumerable<TResult> Read<TResult>(Func<string[], TResult> processor)
+        private IEnumerable<TResult> Read<TResult>
+            (Action<string[], TResult, int> processor) where TResult : new()
         {
             while (true)
             {
                 var values = ParseValues(stream.ReadLine());
                 if (values == null)
                     yield break;
-
-                yield return processor(values);
+                var obj = new TResult();
+                for (int i = 0; i < values.Length; i++)
+                {
+                    processor(values, obj, i);
+                }
+                yield return obj;
             }
         }
 
         public IEnumerable<string[]> Read1()
         {
-            Func<string[], string[]> processor = (values) =>
+            while (true)
             {
-                return values
+                var values = ParseValues(stream.ReadLine());
+                if (values == null) yield break;
+
+                yield return values
                     .Select(x => x == "NA" ? null : x)
                     .ToArray();
-            };
-            return Read(processor);
+            }
         }
 
         public IEnumerable<TType> Read2<TType>()
@@ -123,26 +130,21 @@ namespace Week8
             var bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
             var properties = SetProperties(typeof(TType), bindingFlags);
 
-            Func<string[], TType> processor = (values) =>
+            Action<string[], TType, int> processor = (values, obj, i) =>
             {
-                var obj = new TType();
-                for (int i = 0; i < values.Length; i++)
-                {
-                    var rawType = properties[i].PropertyType;
-                    object value;
-                    if (values[i] == "NA")
-                        if (IsNullableType(rawType))
-                            value = null;
-                        else
-                            throw new ArgumentException();
+                var rawType = properties[i].PropertyType;
+                object value;
+                if (values[i] == "NA")
+                    if (IsNullableType(rawType))
+                        value = null;
                     else
-                    {
-                        var vType = Nullable.GetUnderlyingType(rawType) ?? rawType;
-                        value = Convert.ChangeType(values[i], vType);
-                    }
-                    properties[i].SetValue(obj, value);
+                        throw new ArgumentException();
+                else
+                {
+                    var vType = Nullable.GetUnderlyingType(rawType) ?? rawType;
+                    value = Convert.ChangeType(values[i], vType);
                 }
-                return obj;
+                properties[i].SetValue(obj, value);
             };
             return Read(processor);
         }
@@ -150,16 +152,11 @@ namespace Week8
         public IEnumerable<Dictionary<string, object>> Read3()
         {
             var header = ParseHeader(stream.ReadLine());
-            Func<string[], Dictionary<string, object>> processor = (values) =>
+            Action<string[], Dictionary<string, object>, int> processor = (values, obj, i) =>
             {
-                var dict = new Dictionary<string, object>();
-                for (int i = 0; i < header.Length; i++)
-                {
-                    var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
-                    var value = ExpectedConvert(values[i], expectedTypes);
-                    dict.Add(header[i], value);
-                }
-                return dict;
+                var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
+                var value = ExpectedConvert(values[i], expectedTypes);
+                obj.Add(header[i], value);
             };
             return Read(processor);
         }
@@ -167,16 +164,11 @@ namespace Week8
         public IEnumerable<dynamic> Read4()
         {
             var header = ParseHeader(stream.ReadLine());
-            Func<string[], dynamic> processor = (values) =>
+            Action<string[], dynamic, int> processor = (values, obj, i) =>
             {
-                dynamic obj = new ExpandoObject();
-                for (int i = 0; i < header.Length; i++)
-                {
-                    var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
-                    var value = ExpectedConvert(values[i], expectedTypes);
-                    ((IDictionary<string, object>)obj)[header[i]] = value;
-                }
-                return obj;
+                var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
+                var value = ExpectedConvert(values[i], expectedTypes);
+                ((IDictionary<string, object>)obj)[header[i]] = value;
             };
             return Read(processor);
         }        
