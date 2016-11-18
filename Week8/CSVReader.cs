@@ -179,11 +179,6 @@ namespace Week8
                 return obj;
             };
             return Read(processor);
-        }  
-        
-        public void Close()
-        {
-            stream.Close();
-        }
+        }        
     }
 }
