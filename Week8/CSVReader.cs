@@ -8,11 +8,21 @@ using System.Reflection;
 
 namespace Week8
 {
-    public class CSVReader
+    public class CSVReader : IDisposable
     {
+        private StreamReader stream;
+
+        public CSVReader(string filename)
+        {
+            stream = new StreamReader(filename);                
+        }
+
+        #region Additional methods
         private static string[] ParseHeader(string header)
         {
-            return header.Replace("\"", string.Empty).Split(',');
+            return header
+                .Replace("\"", string.Empty)
+                .Split(',');
         }
 
         private static string[] ParseValues(string values)
@@ -22,27 +32,18 @@ namespace Week8
             return values.Split(',');
         }
 
-        private static bool IsNullableType(Type type)
+        private static object ExpectedConvert<TType>(TType value, List<Type> expectedTypes)
         {
-            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
-        }
-
-        private static object ExpectedConvert(string stringValue)
-        {
-            if (stringValue == "NA") return null;
-            var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
+            if ((value as string) == "NA") return null;
             foreach (var type in expectedTypes)
             {
-                TypeConverter converter = TypeDescriptor.GetConverter(type);
-                if (converter.CanConvertFrom(typeof(string)))
+                var converter = TypeDescriptor.GetConverter(type);
+                if (converter.CanConvertFrom(typeof(TType)))
                 {
                     try
                     {
-                        object newValue = converter.ConvertFromInvariantString(stringValue);
-                        if (newValue != null)
-                        {
-                            return newValue;
-                        }
+                        object newValue = converter.ConvertFrom(value);
+                        if (newValue != null) return newValue;
                     }
                     catch
                     {
@@ -50,111 +51,139 @@ namespace Week8
                     }
                 }
             }
-            return null;
+            throw new NotSupportedException();
         }
 
-        public static IEnumerable<string[]> Read1(string filename)
+        private List<PropertyInfo> SetProperties(Type type, BindingFlags bindingFlags)
         {
-            using (var stream = new StreamReader(filename))
-            {
-                while (true)
-                {
-                    var values = ParseValues(stream.ReadLine());
-                    if (values == null)
-                        yield break;
+            var header = ParseHeader(stream.ReadLine());
+            var properties = type.GetProperties(bindingFlags)
+               .Where(t => header.Contains(t.Name))
+               .ToArray();
+            var sortProperties = new List<PropertyInfo>();
+            foreach (var param in header)
+                sortProperties.Add(properties
+                    .Where(f => f.Name == param)
+                    .Single());
+            return sortProperties;
+        }
 
-                    yield return values
-                        .Select(x => x == "NA" ? null : x)
-                        .ToArray();
+        private static bool IsNullableType(Type type)
+        {
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+        }
+      
+        #endregion
+        #region IDisposable Support
+        private bool disposedValue = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    stream.Close();
                 }
+                disposedValue = true;
+            }
+        }
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+        #endregion
+
+        private IEnumerable<TResult> Read<TResult>(Func<string[], TResult> processor)
+        {
+            while (true)
+            {
+                var values = ParseValues(stream.ReadLine());
+                if (values == null)
+                    yield break;
+
+                yield return processor(values);
             }
         }
 
-        public static IEnumerable<TType> Read2<TType>(string filename)
+        public IEnumerable<string[]> Read1()
+        {
+            Func<string[], string[]> processor = (values) =>
+            {
+                return values
+                    .Select(x => x == "NA" ? null : x)
+                    .ToArray();
+            };
+            return Read(processor);
+        }
+
+        public IEnumerable<TType> Read2<TType>()
             where TType : class, new()
         {
-            using (var stream = new StreamReader(filename))
+            var bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+            var properties = SetProperties(typeof(TType), bindingFlags);
+
+            Func<string[], TType> processor = (values) =>
             {
-                var setParams = ParseHeader(stream.ReadLine());
-
-                var bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
-                var properties = typeof(TType).GetProperties(bindingFlags)
-                    .Where(t => setParams.Contains(t.Name))
-                    .ToArray();
-
-                var sortProperties = new List<PropertyInfo>();
-                foreach (var param in setParams)
-                    sortProperties.Add(properties
-                        .Where(f => f.Name == param)
-                        .Single());
-
-                var values = ParseValues(stream.ReadLine());
-                while (values != null)
+                var obj = new TType();
+                for (int i = 0; i < values.Length; i++)
                 {
-                    var obj = new TType();
-                    for (int i = 0; i < setParams.Length; i++)
-                    {
-                        var rawType = sortProperties[i].PropertyType;
-                        object value;
-                        if (values[i] == "NA")
-                            if (IsNullableType(rawType))
-                                value = null;
-                            else
-                                throw new ArgumentException();
+                    var rawType = properties[i].PropertyType;
+                    object value;
+                    if (values[i] == "NA")
+                        if (IsNullableType(rawType))
+                            value = null;
                         else
-                        {
-                            var vType = Nullable.GetUnderlyingType(rawType) ?? rawType;
-                            value = Convert.ChangeType(values[i], vType);
-                        }
-
-                        sortProperties[i].SetValue(obj, value);
+                            throw new ArgumentException();
+                    else
+                    {
+                        var vType = Nullable.GetUnderlyingType(rawType) ?? rawType;
+                        value = Convert.ChangeType(values[i], vType);
                     }
-                    values = ParseValues(stream.ReadLine());
-                    yield return obj;
+                    properties[i].SetValue(obj, value);
                 }
-            }
+                return obj;
+            };
+            return Read(processor);
         }
 
-        public static IEnumerable<Dictionary<string, object>> Read3(string filename)
+        public IEnumerable<Dictionary<string, object>> Read3()
         {
-            using (var stream = new StreamReader(filename))
+            var header = ParseHeader(stream.ReadLine());
+            Func<string[], Dictionary<string, object>> processor = (values) =>
             {
-                var setParams = ParseHeader(stream.ReadLine());
-                var values = ParseValues(stream.ReadLine());
-
-                while (values != null)
+                var dict = new Dictionary<string, object>();
+                for (int i = 0; i < header.Length; i++)
                 {
-                    var dict = new Dictionary<string, object>();
-                    for (int i = 0; i < setParams.Length; i++)
-                    {
-                        var value = ExpectedConvert(values[i]);
-                        dict.Add(setParams[i], value);
-                    }
-                    values = ParseValues(stream.ReadLine());
-                    yield return dict;
+                    var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
+                    var value = ExpectedConvert(values[i], expectedTypes);
+                    dict.Add(header[i], value);
                 }
-            }
+                return dict;
+            };
+            return Read(processor);
         }
 
-        public static IEnumerable<dynamic> Read4(string filename)
+        public IEnumerable<dynamic> Read4()
         {
-            using (var stream = new StreamReader(filename))
+            var header = ParseHeader(stream.ReadLine());
+            Func<string[], dynamic> processor = (values) =>
             {
-                var setParams = ParseHeader(stream.ReadLine());
-                var values = ParseValues(stream.ReadLine());
-
-                while (values != null)
+                dynamic obj = new ExpandoObject();
+                for (int i = 0; i < header.Length; i++)
                 {
-                    dynamic obj = new ExpandoObject();
-                    for (int i = 0; i < setParams.Length; i++)
-                    {
-                        var value = ExpectedConvert(values[i]);
-                        ((IDictionary<string, object>)obj)[setParams[i]] = value;
-                    }
-                    values = ParseValues(stream.ReadLine());
-                    yield return obj;
+                    var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
+                    var value = ExpectedConvert(values[i], expectedTypes);
+                    ((IDictionary<string, object>)obj)[header[i]] = value;
                 }
-            }
+                return obj;
+            };
+            return Read(processor);
+        }  
+        
+        public void Close()
+        {
+            stream.Close();
         }
     }
 }

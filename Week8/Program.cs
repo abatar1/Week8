@@ -11,10 +11,22 @@ namespace Week8
             System.Threading.Thread.CurrentThread.CurrentCulture = customCulture;
 
             var filename = "airquality.csv";
-            var a = CSVReader.Read1(filename).ToList();
-            var b = CSVReader.Read2<Filler>(filename).ToList();
-            var c = CSVReader.Read3(filename).ToList();
-            var d = CSVReader.Read4(filename).Where(z => z.Ozone > 10).Select(z => z.Wind).ToList();
+            using (var csv = new CSVReader(filename))
+            {
+                var a = csv.Read1().ToList();
+            }
+            using (var csv = new CSVReader(filename))
+            {
+                var a = csv.Read2<Filler>().ToList();
+            }
+            using (var csv = new CSVReader(filename))
+            {
+                var c = csv.Read3().ToList();
+            }
+            using (var csv = new CSVReader(filename))
+            {
+                var d = csv.Read4().Where(z => z.Ozone > 10).Select(z => z.Wind).ToList();
+            }
         }
     }
 }
