@@ -164,7 +164,7 @@ namespace Week8
         public IEnumerable<dynamic> Read4()
         {
             var header = ParseHeader(stream.ReadLine());
-            Action<string[], dynamic, int> processor = (values, obj, i) =>
+            Action<string[], ExpandoObject, int> processor = (values, obj, i) =>
             {
                 var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
                 var value = ExpectedConvert(values[i], expectedTypes);
