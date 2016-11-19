@@ -17,7 +17,7 @@ namespace Week8
             }
             using (var csv = new CSVReader(filename))
             {
-                var a = csv.Read2<Filler>().ToList();
+                var b = csv.Read2<Filler>().ToList();
             }
             using (var csv = new CSVReader(filename))
             {

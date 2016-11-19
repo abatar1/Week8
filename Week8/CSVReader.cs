@@ -32,9 +32,11 @@ namespace Week8
             return values.Split(',');
         }
 
-        private static object ExpectedConvert<TType>(TType value, List<Type> expectedTypes)
+        private static object ExpectedConvert<TType>(TType value)
         {
             if ((value as string) == "NA") return null;
+
+            var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
             foreach (var type in expectedTypes)
             {
                 var converter = TypeDescriptor.GetConverter(type);
@@ -71,8 +73,7 @@ namespace Week8
         private static bool IsNullableType(Type type)
         {
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
-        }
-      
+        }  
         #endregion
         #region IDisposable Support
         private bool disposedValue = false;
@@ -96,14 +97,18 @@ namespace Week8
 
         private IEnumerable<TResult> TRead<TResult>
             (Action<string[], TResult, int> processor) 
-            where TResult : new()
         {
+            var hasDefaultConstructor = typeof(TResult).GetConstructor(Type.EmptyTypes) != null;
             while (true)
             {
                 var values = ParseValues(stream.ReadLine());
                 if (values == null)
                     yield break;
-                var obj = new TResult();
+
+                TResult obj = hasDefaultConstructor 
+                    ? obj = (TResult)Activator.CreateInstance(typeof(TResult)) 
+                    : obj = default(TResult);          
+
                 for (int i = 0; i < values.Length; i++)
                 {
                     processor(values, obj, i);
@@ -114,15 +119,13 @@ namespace Week8
 
         public IEnumerable<string[]> Read1()
         {
-            while (true)
+            Action<string[], string[], int> processor = (values, obj, i) =>
             {
-                var values = ParseValues(stream.ReadLine());
-                if (values == null) yield break;
-
-                yield return values
+                obj = values
                     .Select(x => x == "NA" ? null : x)
                     .ToArray();
-            }
+            };
+            return TRead(processor);
         }
 
         public IEnumerable<TType> Read2<TType>()
@@ -155,8 +158,7 @@ namespace Week8
             var header = ParseHeader(stream.ReadLine());
             Action<string[], Dictionary<string, object>, int> processor = (values, obj, i) =>
             {
-                var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
-                var value = ExpectedConvert(values[i], expectedTypes);
+                var value = ExpectedConvert(values[i]);
                 obj.Add(header[i], value);
             };
             return TRead(processor);
@@ -167,8 +169,7 @@ namespace Week8
             var header = ParseHeader(stream.ReadLine());
             Action<string[], ExpandoObject, int> processor = (values, obj, i) =>
             {
-                var expectedTypes = new List<Type> { typeof(int), typeof(double), typeof(string) };
-                var value = ExpectedConvert(values[i], expectedTypes);
+                var value = ExpectedConvert(values[i]);
                 ((IDictionary<string, object>)obj)[header[i]] = value;
             };
             return TRead(processor);
