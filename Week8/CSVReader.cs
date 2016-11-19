@@ -105,8 +105,8 @@ namespace Week8
                     yield break;
 
                 TResult obj = hasDefaultConstructor
-                    ? obj = (TResult)Activator.CreateInstance(typeof(TResult)) 
-                    : obj = default(TResult);          
+                    ? (TResult)Activator.CreateInstance(typeof(TResult)) 
+                    : default(TResult);          
                 
                 for (int i = 0; i < values.Length; i++)
                 {
@@ -120,9 +120,8 @@ namespace Week8
         {
             Action<string[], string[], int> processor = (values, obj, i) =>
             {             
-                string value = values[i] == "NA" ? value = null : value = values[i];
                 Array.Resize(ref obj, i + 1);
-                obj[i] = value;
+                obj[i] = values[i] == "NA" ? null : values[i];
             };
             return TRead(processor);
         }
