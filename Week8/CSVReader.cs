@@ -120,7 +120,7 @@ namespace Week8
         {
             Action<string[], string[], int> processor = (values, obj, i) =>
             {             
-                Array.Resize(ref obj, i + 1);
+                if(obj == null) Array.Resize(ref obj, values.Length);
                 obj[i] = values[i] == "NA" ? null : values[i];
             };
             return TRead(processor);
