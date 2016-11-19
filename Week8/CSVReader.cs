@@ -95,8 +95,7 @@ namespace Week8
         }
         #endregion
 
-        private IEnumerable<TResult> TRead<TResult>
-            (Action<string[], TResult, int> processor) 
+        private IEnumerable<TResult> TRead<TResult>(Action<string[], TResult, int> processor) 
         {
             var hasDefaultConstructor = typeof(TResult).GetConstructor(Type.EmptyTypes) != null;
             while (true)
@@ -105,10 +104,10 @@ namespace Week8
                 if (values == null)
                     yield break;
 
-                TResult obj = hasDefaultConstructor 
+                TResult obj = hasDefaultConstructor
                     ? obj = (TResult)Activator.CreateInstance(typeof(TResult)) 
                     : obj = default(TResult);          
-
+                
                 for (int i = 0; i < values.Length; i++)
                 {
                     processor(values, obj, i);
@@ -120,10 +119,10 @@ namespace Week8
         public IEnumerable<string[]> Read1()
         {
             Action<string[], string[], int> processor = (values, obj, i) =>
-            {
-                obj = values
-                    .Select(x => x == "NA" ? null : x)
-                    .ToArray();
+            {             
+                string value = values[i] == "NA" ? value = null : value = values[i];
+                Array.Resize(ref obj, i + 1);
+                obj[i] = value;
             };
             return TRead(processor);
         }
