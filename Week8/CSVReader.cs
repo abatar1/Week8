@@ -104,7 +104,7 @@ namespace Week8
                 if (values == null)
                     yield break;
 
-                TResult obj = hasDefaultConstructor
+                var obj = hasDefaultConstructor
                     ? (TResult)Activator.CreateInstance(typeof(TResult)) 
                     : default(TResult);          
                 
